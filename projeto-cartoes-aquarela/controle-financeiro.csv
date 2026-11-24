@@ -1,0 +1,2 @@
+data;pedido_id;descricao;quantidade;receita;custo_material;custo_envelope;custo_embalagem;taxa_pagamento;frete_pago_pela_artista;anuncios;outras_despesas;horas_trabalhadas;valor_hora;resultado_caixa;resultado_economico
+;;;;;;;;;;;;;;;

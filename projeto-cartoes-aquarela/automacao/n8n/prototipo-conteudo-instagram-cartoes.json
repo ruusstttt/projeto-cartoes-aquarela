@@ -1,0 +1,163 @@
+{
+  "name": "Protótipo seguro — Conteúdo Instagram Cartões Aquarela",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "0b0a779f-c436-4d60-9933-a6e708d7bb01",
+      "name": "Executar manualmente",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [-900, 260]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "1a08b934-1c77-4ef2-86ce-5698e05f5a01",
+              "name": "produto",
+              "type": "string",
+              "value": "Cartão artesanal em aquarela — N01 Cervo"
+            },
+            {
+              "id": "6ddbe087-f1f0-4018-8653-e25515f14c02",
+              "name": "preco",
+              "type": "number",
+              "value": 35
+            },
+            {
+              "id": "e8f2625c-efb6-43c0-94bb-01e37cbb2203",
+              "name": "formato",
+              "type": "string",
+              "value": "15 × 12 cm fechado; 30 × 12 cm aberto"
+            },
+            {
+              "id": "eb454631-5763-42f8-8960-f07b00183d04",
+              "name": "inclui",
+              "type": "string",
+              "value": "envelope, De/Para e mensagem curta"
+            },
+            {
+              "id": "12e8de9d-b978-4d36-bd38-37c529901405",
+              "name": "cta",
+              "type": "string",
+              "value": "Envie NATAL no direct"
+            },
+            {
+              "id": "368968c8-1f9f-4b61-9ed0-290e0267ad06",
+              "name": "tom",
+              "type": "string",
+              "value": "humano, delicado, autoral, direto e sem escassez falsa"
+            },
+            {
+              "id": "35c18d75-0099-4ba2-990b-9df8da849107",
+              "name": "publicar_automaticamente",
+              "type": "boolean",
+              "value": false
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "a1c4070b-e95a-4cb5-8bf3-dc6385073f11",
+      "name": "Configuração do produto",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [-660, 260]
+    },
+    {
+      "parameters": {
+        "jsCode": "const config = $input.first().json;\n\nconst ideias = [\n  {\n    tema: 'presente com significado',\n    gancho: 'O presente pode acabar. A mensagem fica.',\n    formato_conteudo: 'foto de produto + detalhe da mensagem',\n    score: 92\n  },\n  {\n    tema: 'processo artesanal',\n    gancho: 'Da folha em branco a um cartão que não existe igual.',\n    formato_conteudo: 'Reel curto de processo',\n    score: 98\n  },\n  {\n    tema: 'personalização',\n    gancho: 'Feito à mão para alguém específico.',\n    formato_conteudo: 'carrossel frente, interior e De/Para',\n    score: 95\n  }\n];\n\nreturn ideias.map((ideia, index) => ({\n  json: {\n    ...config,\n    ideia_id: index + 1,\n    ...ideia,\n    origem_tendencia: 'protótipo local — substituir por pesquisa aprovada na fase 2'\n  }\n}));"
+      },
+      "id": "e6ad4d20-41b7-4b29-bd0f-f87b7ef1dc21",
+      "name": "Criar 3 ideias de conteúdo",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-400, 260]
+    },
+    {
+      "parameters": {
+        "jsCode": "const candidatas = $input.all().map(item => item.json);\nconst escolhida = [...candidatas].sort((a, b) => b.score - a.score)[0];\n\nreturn [{\n  json: {\n    ...escolhida,\n    candidatas: candidatas.map(({ ideia_id, tema, gancho, score }) => ({ ideia_id, tema, gancho, score }))\n  }\n}];"
+      },
+      "id": "18e9672a-1f3f-4905-a2ee-77703f5d7c31",
+      "name": "Selecionar melhor ideia",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-140, 260]
+    },
+    {
+      "parameters": {
+        "jsCode": "const d = $input.first().json;\n\nconst legenda = `${d.gancho}\\n\\nCada peça é desenhada e pintada individualmente em aquarela. O modelo padrão mede ${d.formato} e acompanha ${d.inclui}.\\n\\nR$ ${Number(d.preco).toFixed(2).replace('.', ',')}\\n\\n${d.cta}.\\n\\n#Aquarela #FeitoÀMão #CartãoArtesanal #NatalAutoral #Brasília`;\n\nconst promptImagem = `Fotografia editorial vertical 4:5 de um cartão artesanal de Natal em aquarela, preservando o produto real e sua caligrafia. Fundo marfim limpo, envelope kraft, pequenos ramos de eucalipto, luz natural suave. O cartão deve ser o elemento principal. Sem texto promocional adicional, sem logotipo, sem marca-d'água.`;\n\nreturn [{\n  json: {\n    ...d,\n    legenda,\n    prompt_imagem: promptImagem,\n    briefing_visual: 'Usar a foto real do N01 como referência; IA pode limpar o cenário, mas não deve inventar outro produto.',\n    arquivo_visual_prototipo: 'assets/prototipo-instagram-n01-v2-natural.png',\n    checklist_revisao: [\n      'O produto da imagem corresponde ao produto real?',\n      'Feliz Natal, De: e Para: estão corretos?',\n      'Preço, formato e itens inclusos conferem?',\n      'A legenda evita promessas e escassez falsas?',\n      'Há autorização para publicar esta foto?'\n    ]\n  }\n}];"
+      },
+      "id": "cc68bd53-37b7-43ab-a0c2-c51570df6741",
+      "name": "Montar pacote para Instagram",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [120, 260]
+    },
+    {
+      "parameters": {
+        "jsCode": "const pacote = $input.first().json;\n\nreturn [{\n  json: {\n    ...pacote,\n    status: 'AGUARDANDO_APROVACAO_HUMANA',\n    aprovado: false,\n    proxima_acao: 'Revisar imagem, texto e dados antes de qualquer publicação.'\n  }\n}];"
+      },
+      "id": "fb874cc1-a41c-4055-9a53-c19a900ab551",
+      "name": "Aguardar aprovação humana",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [400, 260]
+    },
+    {
+      "parameters": {
+        "color": 4,
+        "width": 720,
+        "height": 220,
+        "content": "## Protótipo seguro\nExecuta manualmente, cria três pautas, escolhe a mais forte e monta legenda + briefing de imagem.\n\n**Não pesquisa a web, não chama APIs pagas e não publica.**"
+      },
+      "id": "687c5ec3-aaf0-44ce-a8de-154db72e0161",
+      "name": "Sobre o protótipo",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [-900, -40]
+    },
+    {
+      "parameters": {
+        "color": 5,
+        "width": 520,
+        "height": 220,
+        "content": "## Fase 2 — somente após validação\n1. Fonte de tendências autorizada\n2. Geração de legenda/imagem por API\n3. Armazenamento e deduplicação\n4. Aprovação humana real\n5. Instagram Graph API"
+      },
+      "id": "78d4d0fe-f7f5-4cd4-a8a4-c1f0298e5c71",
+      "name": "Automação futura",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [100, -40]
+    }
+  ],
+  "connections": {
+    "Executar manualmente": {
+      "main": [[{"node": "Configuração do produto", "type": "main", "index": 0}]]
+    },
+    "Configuração do produto": {
+      "main": [[{"node": "Criar 3 ideias de conteúdo", "type": "main", "index": 0}]]
+    },
+    "Criar 3 ideias de conteúdo": {
+      "main": [[{"node": "Selecionar melhor ideia", "type": "main", "index": 0}]]
+    },
+    "Selecionar melhor ideia": {
+      "main": [[{"node": "Montar pacote para Instagram", "type": "main", "index": 0}]]
+    },
+    "Montar pacote para Instagram": {
+      "main": [[{"node": "Aguardar aprovação humana", "type": "main", "index": 0}]]
+    }
+  },
+  "pinData": {},
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "America/Sao_Paulo"
+  },
+  "versionId": "8659d536-27b9-4b1f-a7df-e2533d6a6171",
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "tags": []
+}

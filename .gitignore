@@ -1,0 +1,11 @@
+# OS & Editors
+.DS_Store
+Thumbs.db
+desktop.ini
+*.swp
+*.swo
+*~
+
+# Temporary & Logs
+*.tmp
+*.log

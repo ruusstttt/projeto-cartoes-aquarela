@@ -8,7 +8,7 @@ import re
 import shutil
 import subprocess
 import tempfile
-import wave
+from trilha import compor
 
 import numpy as np
 from PIL import (
@@ -910,235 +910,135 @@ def outro15(k):
     return im
 
 
-# A 3/4 fingerpicked cue, composed to resolve on the last shot.
-sr = 48000
-total = 20.4
-mix = np.zeros((round(total * sr), 2), dtype=np.float64)
-rng = np.random.default_rng(762)
+if __name__ == "__main__":
+    compor(work / "cue.wav")
+    prepare_brush()
 
-
-def place(at, mono, level, pan=0):
-    i = round(at * sr)
-    n = min(len(mono), len(mix) - i)
-    if n > 0:
-        mix[i : i + n] += (
-            level
-            * mono[:n, None]
-            * np.array([math.sqrt((1 - pan) / 2), math.sqrt((1 + pan) / 2)])
-        )
-
-
-def pluck(midi, at, amp, pan=0, hold=2.5, bell=False):
-    f = 440 * 2 ** ((midi - 69) / 12)
-    t = np.arange(round(sr * hold)) / sr
-    signal = np.zeros_like(t)
-    if bell:
-        for ratio, power, dec in [
-            (1, 1, 1.15),
-            (2.008, 0.30, 0.65),
-            (3.98, 0.13, 0.4),
-            (5.45, 0.055, 0.19),
-        ]:
-            signal += power * np.sin(2 * np.pi * f * ratio * t) * np.exp(-t / dec)
-    else:
-        position = rng.uniform(0.18, 0.26)
-        for h in range(1, 10):
-            power = np.sin(np.pi * h * position) / (h**1.48)
-            signal += (
-                power
-                * np.sin(2 * np.pi * f * h * (1 + 0.000009 * h * h) * t)
-                * np.exp(-t * (1.42 + 0.32 * h))
+    for base, fn, num in [
+        (0, intro15, 28),
+        (28, santa15, 37),
+        (65, note15, 47),
+        (112, sale15, 63),
+        (175, outro15, 29),
+    ]:
+        for k in range(num):
+            fn(k).convert("RGB").save(
+                work / f"pose-{base + k:03}.jpg", quality=95, subsampling=0
             )
-        signal += rng.normal(0, 0.017, len(t)) * np.exp(-t * 160)
-    signal *= np.minimum(1, t / 0.008) * np.minimum(1, (hold - t) / 0.05)
-    place(at, signal, amp, pan)
-    for delay, level in [(0.039, 0.10), (0.073, 0.075), (0.121, 0.05)]:
-        place(at + delay, signal, amp * level, -pan)
-
-
-beat = 0.60
-chords = [
-    [50, 57, 62, 66, 69],
-    [47, 54, 59, 62, 66],
-    [43, 55, 59, 62, 66],
-    [45, 52, 57, 62, 64],
-    [50, 57, 62, 66, 69],
-    [47, 54, 59, 62, 69],
-    [43, 55, 59, 62, 66],
-    [45, 52, 57, 61, 64],
-    [43, 55, 59, 62, 67],
-    [45, 52, 57, 62, 64],
-    [50, 57, 62, 66, 69],
-]
-for b, ch in enumerate(chords):
-    start = 0.10 + b * 3 * beat
-    pattern = [
-        (0, 0, 0.24),
-        (0.49, 2, 0.17),
-        (1.0, 3, 0.18),
-        (1.52, 1, 0.155),
-        (2.02, 4, 0.16),
-        (2.52, 2, 0.115),
-    ]
-    if b == len(chords) - 1:
-        pattern = [
-            (0, 0, 0.25),
-            (0.12, 1, 0.19),
-            (0.24, 2, 0.16),
-            (0.39, 3, 0.18),
-            (0.58, 4, 0.13),
-        ]
-    for j, (o, n, amp) in enumerate(pattern):
-        pluck(
-            ch[n],
-            start + o * beat + rng.uniform(-0.008, 0.008),
-            amp * rng.uniform(0.87, 1.05),
-            [-0.17, 0.19, -0.09, 0.22, 0.08, -0.13][j],
-        )
-for at, pitch, level in [
-    (0.56, 78, 0.031),
-    (3.72, 74, 0.05),
-    (6.4, 78, 0.045),
-    (8.0, 81, 0.038),
-    (11.63, 74, 0.05),
-    (14.68, 78, 0.047),
-    (16.2, 81, 0.039),
-    (18.48, 78, 0.033),
-]:
-    pluck(pitch, at, level, 0.26, 1.8, True)
-mix *= min(2.9, 0.78 / max(1e-6, np.abs(mix).max()))
-mix[-round(0.40 * sr) :] *= np.linspace(1, 0, round(0.40 * sr))[:, None]
-with wave.open(str(work / "cue.wav"), "wb") as out:
-    out.setparams((2, 2, sr, 0, "NONE", "not compressed"))
-    out.writeframes(np.int16(np.clip(mix, -1, 1) * 32767).tobytes())
-
-prepare_brush()
-
-for base, fn, num in [
-    (0, intro15, 28),
-    (28, santa15, 37),
-    (65, note15, 47),
-    (112, sale15, 63),
-    (175, outro15, 29),
-]:
-    for k in range(num):
-        fn(k).convert("RGB").save(
-            work / f"pose-{base + k:03}.jpg", quality=95, subsampling=0
-        )
-    print(f"{fn.__name__}: {num} poses", flush=True)
-# An Instagram-compatible 30 fps file, exposing each stop-motion pose for three frames.
-out = work / "reel-cartoes-de-natal-v15.mp4"
-run(
-    "-y",
-    "-framerate",
-    "10",
-    "-start_number",
-    "0",
-    "-i",
-    work / "pose-%03d.jpg",
-    "-i",
-    work / "cue.wav",
-    "-map",
-    "0:v:0",
-    "-map",
-    "1:a:0",
-    "-map_metadata",
-    "-1",
-    "-vf",
-    "scale=1080:1920:out_color_matrix=bt709:out_range=tv,setsar=1,fps=30,format=yuv420p",
-    "-c:v",
-    "libx264",
-    "-preset",
-    "veryfast",
-    "-crf",
-    16,
-    "-threads",
-    5,
-    "-colorspace",
-    "bt709",
-    "-color_range",
-    "tv",
-    "-color_primaries",
-    "bt709",
-    "-color_trc",
-    "bt709",
-    "-af",
-    "loudnorm=I=-17:TP=-1.5:LRA=8,aresample=48000",
-    "-c:a",
-    "aac",
-    "-b:a",
-    "224k",
-    "-movflags",
-    "+faststart+write_colr",
-    "-t",
-    "20.4",
-    out,
-)
-check = run("-i", out, "-f", "null", "-")
-assert re.search(r"frame=\s*612\b", check) and "Duration: 00:00:20.40" in check
-assert re.search(r"Video: h264.*1080x1920.*30 fps", check) and "Audio: aac" in check
-assert len(list(work.glob("pose-*.jpg"))) == 204
-for k in range(25):
-    wanted = ground.copy()
-    sparkle(
-        wanted, k, [(176, 633, 104), (865, 483, 128), (934, 559, 56), (177, 1492, 73)]
-    )
-    envelope(wanted)
-    rect = (0, LIP, W, H)
-    assert (
-        ImageChops.difference(
-            santa15(k).crop(rect).convert("RGB"), wanted.crop(rect).convert("RGB")
-        ).getbbox()
-        is None
-    )
-assert positions[-1] + insert.height < LIP - 80
-times = [
-    0.3,
-    1.3,
-    3.0,
-    4.4,
-    5.7,
-    6.7,
-    7.27,
-    7.65,
-    8.4,
-    10.8,
-    12.8,
-    13.95,
-    14.9,
-    16.45,
-    18.3,
-    20.1,
-]
-panel = Image.new("RGB", (8 * 178, 2 * 343), (34, 36, 30))
-for j, t in enumerate(times):
-    p = work / f"check-{j}.jpg"
+        print(f"{fn.__name__}: {num} poses", flush=True)
+    # An Instagram-compatible 30 fps file, exposing each stop-motion pose for three frames.
+    out = work / "reel-cartoes-de-natal-v15.mp4"
     run(
         "-y",
-        "-ss",
-        t,
+        "-framerate",
+        "10",
+        "-start_number",
+        "0",
         "-i",
-        out,
-        "-frames:v",
-        1,
+        work / "pose-%03d.jpg",
+        "-i",
+        work / "cue.wav",
+        "-map",
+        "0:v:0",
+        "-map",
+        "1:a:0",
+        "-map_metadata",
+        "-1",
         "-vf",
-        "scale=176:313",
-        "-update",
-        1,
-        p,
+        "scale=1080:1920:out_color_matrix=bt709:out_range=tv,setsar=1,fps=30,format=yuv420p",
+        "-c:v",
+        "libx264",
+        "-preset",
+        "veryfast",
+        "-crf",
+        16,
+        "-threads",
+        5,
+        "-colorspace",
+        "bt709",
+        "-color_range",
+        "tv",
+        "-color_primaries",
+        "bt709",
+        "-color_trc",
+        "bt709",
+        "-af",
+        "loudnorm=I=-17:TP=-1.5:LRA=8,aresample=48000",
+        "-c:a",
+        "aac",
+        "-b:a",
+        "224k",
+        "-movflags",
+        "+faststart+write_colr",
+        "-t",
+        "20.4",
+        out,
     )
-    x = j % 8 * 178
-    y = j // 8 * 343
-    panel.paste(photo(p), (x, y))
-    ImageDraw.Draw(panel).text(
-        (x + 5, y + 316), f"{t:.2f} s", font=sans(16), fill="white"
+    check = run("-i", out, "-f", "null", "-")
+    assert re.search(r"frame=\s*612\b", check) and "Duration: 00:00:20.40" in check
+    assert re.search(r"Video: h264.*1080x1920.*30 fps", check) and "Audio: aac" in check
+    assert len(list(work.glob("pose-*.jpg"))) == 204
+    for k in range(25):
+        wanted = ground.copy()
+        sparkle(
+            wanted, k, [(176, 633, 104), (865, 483, 128), (934, 559, 56), (177, 1492, 73)]
+        )
+        envelope(wanted)
+        rect = (0, LIP, W, H)
+        assert (
+            ImageChops.difference(
+                santa15(k).crop(rect).convert("RGB"), wanted.crop(rect).convert("RGB")
+            ).getbbox()
+            is None
+        )
+    assert positions[-1] + insert.height < LIP - 80
+    times = [
+        0.3,
+        1.3,
+        3.0,
+        4.4,
+        5.7,
+        6.7,
+        7.27,
+        7.65,
+        8.4,
+        10.8,
+        12.8,
+        13.95,
+        14.9,
+        16.45,
+        18.3,
+        20.1,
+    ]
+    panel = Image.new("RGB", (8 * 178, 2 * 343), (34, 36, 30))
+    for j, t in enumerate(times):
+        p = work / f"check-{j}.jpg"
+        run(
+            "-y",
+            "-ss",
+            t,
+            "-i",
+            out,
+            "-frames:v",
+            1,
+            "-vf",
+            "scale=176:313",
+            "-update",
+            1,
+            p,
+        )
+        x = j % 8 * 178
+        y = j // 8 * 343
+        panel.paste(photo(p), (x, y))
+        ImageDraw.Draw(panel).text(
+            (x + 5, y + 316), f"{t:.2f} s", font=sans(16), fill="white"
+        )
+    panel.save(work / "review.jpg", quality=94)
+    print(
+        "204 poses, 612 frames at 30 fps, 20.40 s, AAC; all 25 pocket poses verified",
+        flush=True,
     )
-panel.save(work / "review.jpg", quality=94)
-print(
-    "204 poses, 612 frames at 30 fps, 20.40 s, AAC; all 25 pocket poses verified",
-    flush=True,
-)
 
-os.replace(out, build / out.name)
-os.replace(work / "review.jpg", build / "quadros-v15.jpg")
-temp.cleanup()
+    os.replace(out, build / out.name)
+    os.replace(work / "review.jpg", build / "quadros-v15.jpg")
+    temp.cleanup()
